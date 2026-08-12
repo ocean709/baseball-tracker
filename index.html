@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사회인 야구 멀티 플랫폼 트래커</title>
+    
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --accent: #38bdf8;
+            --green: #22c55e;
+            --border: #334155;
+            --hover-bg: #2d3748;
+        }
+
+        body {
+            font-family: 'Malgun Gothic', -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container { width: 100%; max-width: 450px; }
+        .header { text-align: center; margin-bottom: 24px; }
+        .header h1 { font-size: 1.5rem; color: var(--accent); margin: 0 0 6px 0; }
+
+        #selection-view { display: block; padding-top: 40px; }
+        .player-select-list { display: flex; flex-direction: column; gap: 16px; }
+        .player-card-item {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .player-card-item:hover {
+            background-color: var(--hover-bg);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+        .player-card-item h3 { margin: 0 0 6px 0; font-size: 1.25rem; color: var(--text-main); }
+        .player-card-item p { margin: 0; font-size: 0.85rem; color: var(--text-sub); }
+
+        #dashboard-view { display: none; }
+        .back-btn {
+            background: none; border: none; color: var(--accent);
+            font-size: 0.9rem; font-weight: bold; cursor: pointer;
+            padding: 0; margin-bottom: 16px;
+        }
+
+        .platform-tab-container {
+            display: flex; gap: 8px; margin-bottom: 16px; justify-content: center;
+        }
+        .tab-btn {
+            background-color: var(--card-bg); color: var(--text-sub);
+            border: 1px solid var(--border); padding: 6px 14px;
+            border-radius: 20px; font-size: 0.82rem; font-weight: bold;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background-color: var(--accent); color: #0f172a; border-color: var(--accent);
+        }
+
+        .card {
+            background-color: var(--card-bg); border-radius: 16px;
+            padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .badge {
+            display: inline-block; padding: 4px 8px; border-radius: 6px;
+            font-size: 0.75rem; font-weight: bold; margin-bottom: 12px;
+        }
+        .badge-recent { background-color: #334155; color: var(--text-sub); }
+        .badge-next { background-color: #0284c7; color: #ffffff; }
+
+        .player-info h2 { margin: 0; font-size: 1.3rem; }
+        .player-info p { margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-sub); }
+
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+            margin-top: 18px; text-align: center; border-top: 1px solid var(--border);
+            padding-top: 16px;
+        }
+        .stat-item .label { font-size: 0.75rem; color: var(--text-sub); display: block; }
+        .stat-item .val { font-size: 1.15rem; font-weight: bold; color: var(--accent); margin-top: 4px; }
+
+        .game-list { list-style: none; padding: 0; margin: 0; }
+        .game-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem;
+        }
+        .game-item:last-child { border-bottom: none; }
+        .game-date { color: var(--text-sub); font-size: 0.78rem; }
+        .game-stat { color: var(--green); font-weight: bold; }
+
+        .next-game-item {
+            padding: 8px 0; border-bottom: 1px dashed var(--border);
+        }
+        .next-game-item:last-child { border-bottom: none; }
+        .next-game-time { font-size: 0.95rem; font-weight: bold; color: var(--accent); }
+        .next-game-vs { font-size: 0.88rem; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- [뷰 1] 선수 선택 화면 -->
+    <div id="selection-view">
+        <div class="header">
+            <h1>BASEBALL TRACKER</h1>
+            <p style="color: var(--text-sub); font-size: 0.9rem;">기록을 확인할 선수를 선택하세요</p>
+        </div>
+        <div class="player-select-list">
+            <div class="player-card-item" onclick="selectPlayer('ebada')">
+                <h3>이바다</h3>
+                <p>내야수 | 게임원 + 나이스캐치 통합</p>
+            </div>
+            <div class="player-card-item" onclick="selectPlayer('jaehyuk')">
+                <h3>이재혁</h3>
+                <p>내야수 | 게임원 공식 기록</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- [뷰 2] 선수 상세 대시보드 화면 -->
+    <div id="dashboard-view">
+        <button class="back-btn" onclick="goBackToSelection()">← 선수 선택으로 돌아가기</button>
+        
+        <div class="header">
+            <h1>BASEBALL TRACKER</h1>
+            <p style="color: var(--text-sub); font-size: 0.85rem;">멀티 플랫폼 기록 분석 대시보드</p>
+        </div>
+
+        <div class="platform-tab-container" id="platform-tabs" style="display: none;">
+            <button class="tab-btn active" onclick="switchPlatformTab('combined', this)">통합 기록</button>
+            <button class="tab-btn" onclick="switchPlatformTab('gameone', this)">게임원</button>
+            <button class="tab-btn" onclick="switchPlatformTab('nicecatch', this)">나이스캐치</button>
+        </div>
+
+        <!-- 1. 프로필 & 시즌 기록 -->
+        <div class="card">
+            <div class="player-info">
+                <h2 id="p-name">선수 이름</h2>
+                <p id="p-team">팀 정보</p>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-item"><span class="label" id="lbl-avg">타율</span><span class="val" id="st-avg">-</span></div>
+                <div class="stat-item"><span class="label" id="lbl-hits">안타</span><span class="val" id="st-hits">-</span></div>
+                <div class="stat-item"><span class="label">홈런</span><span class="val" id="st-hr">-</span></div>
+                <div class="stat-item"><span class="label" id="lbl-ops">OPS</span><span class="val" id="st-ops">-</span></div>
+            </div>
+        </div>
+
+        <!-- 2. 최근 5경기 기록 -->
+        <div class="card">
+            <span class="badge badge-recent">RECENT 5 GAMES</span>
+            <ul class="game-list" id="recent-games-list">
+                <li class="game-item">기록 불러오는 중...</li>
+            </ul>
+        </div>
+
+        <!-- 3. 다음 경기 일정 -->
+        <div class="card">
+            <span class="badge badge-next">NEXT GAME</span>
+            <div id="next-games-container">일정 확인 중...</div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let globalPlayerData = null;
+
+    async function selectPlayer(playerId) {
+        document.getElementById('selection-view').style.display = 'none';
+        document.getElementById('dashboard-view').style.display = 'block';
+        await loadPlayerData(playerId);
+    }
+
+    function goBackToSelection() {
+        document.getElementById('dashboard-view').style.display = 'none';
+        document.getElementById('selection-view').style.display = 'block';
+    }
+
+    async function loadPlayerData(playerId) {
+        try {
+            // 배포용 상대 경로로 수정 적용됨
+            const response = await fetch(`/api/player/${playerId}`);
+            globalPlayerData = await response.json();
+
+            document.getElementById('p-name').innerText = `${globalPlayerData.player_info.name} (${globalPlayerData.player_info.back_number})`;
+            document.getElementById('p-team').innerText = `${globalPlayerData.player_info.team_name} | ${globalPlayerData.player_info.position}`;
+
+            const tabContainer = document.getElementById('platform-tabs');
+            if (globalPlayerData.player_info.has_multi_platform) {
+                tabContainer.style.display = 'flex';
+                switchPlatformTab('combined', tabContainer.children[0]);
+            } else {
+                tabContainer.style.display = 'none';
+                renderPlatformData('gameone');
+            }
+
+        } catch (error) {
+            console.error('데이터 불러오기 실패:', error);
+            alert('데이터 수집 중 오류가 발생했습니다.');
+            goBackToSelection();
+        }
+    }
+
+    function switchPlatformTab(platformKey, btnElement) {
+        const buttons = document.querySelectorAll('.tab-btn');
+        buttons.forEach(btn => btn.classList.remove('active'));
+        if (btnElement) btnElement.classList.add('active');
+        renderPlatformData(platformKey);
+    }
+
+    function renderPlatformData(platformKey) {
+        const platformData = globalPlayerData.platforms[platformKey];
+        if (!platformData) return;
+
+        if (platformKey === 'combined') {
+            document.getElementById('lbl-avg').innerText = '합산타율';
+            document.getElementById('lbl-hits').innerText = '총안타';
+            document.getElementById('lbl-ops').innerText = '합산OPS';
+        } else {
+            document.getElementById('lbl-avg').innerText = '타율';
+            document.getElementById('lbl-hits').innerText = '안타';
+            document.getElementById('lbl-ops').innerText = 'OPS';
+        }
+
+        document.getElementById('st-avg').innerText = platformData.season_stats.avg;
+        document.getElementById('st-hits').innerText = platformData.season_stats.hits;
+        document.getElementById('st-hr').innerText = platformData.season_stats.hr;
+        document.getElementById('st-ops').innerText = platformData.season_stats.ops;
+
+        const recentListEl = document.getElementById('recent-games-list');
+        recentListEl.innerHTML = '';
+
+        if (platformData.recent_games && platformData.recent_games.length > 0) {
+            platformData.recent_games.forEach(game => {
+                const li = document.createElement('li');
+                li.className = 'game-item';
+                li.innerHTML = `
+                    <div>
+                        <div>vs ${game.opponent}</div>
+                        <div class="game-date">${game.date}</div>
+                    </div>
+                    <div class="game-stat">${game.stat}</div>
+                `;
+                recentListEl.appendChild(li);
+            });
+        } else {
+            recentListEl.innerHTML = '<li class="game-item" style="color:var(--text-sub);">나이스캐치는 다음 경기 일정 정보만 제공됩니다.</li>';
+        }
+
+        const nextGames = platformData.next_games || globalPlayerData.next_games;
+        const nextContainer = document.getElementById('next-games-container');
+        nextContainer.innerHTML = '';
+
+        if (nextGames && nextGames.length > 0) {
+            nextGames.forEach(game => {
+                const gameDiv = document.createElement('div');
+                gameDiv.className = 'next-game-item';
+                gameDiv.innerHTML = `
+                    <div class="next-game-time">${game.date} [${game.league || '리그'}]</div>
+                    <div class="next-game-vs">vs ${game.opponent} (${game.stadium})</div>
+                `;
+                nextContainer.appendChild(gameDiv);
+            });
+        } else {
+            nextContainer.innerHTML = '<div>예정된 다음 경기가 없습니다.</div>';
+        }
+    }
+</script>
+
+</body>
+</html>
