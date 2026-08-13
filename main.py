@@ -5,6 +5,14 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import urllib3
+import os
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+import requests
+from bs4 import BeautifulSoup
+import re
+import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -193,4 +201,6 @@ def get_player_data(player_id: str):
 
 @app.get("/")
 def read_root():
-    return FileResponse("index.html")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    html_path = os.path.join(base_dir, "index.html")
+    return FileResponse(html_path)
