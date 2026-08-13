@@ -59,7 +59,7 @@
         }
 
         .platform-tab-container {
-            display: flex; gap: 8px; margin-bottom: 16px; justify-content: center;
+            display: flex; gap: 8px; margin-bottom: 16px; justify-content: center; flex-wrap: wrap;
         }
         .tab-btn {
             background-color: var(--card-bg); color: var(--text-sub);
@@ -76,12 +76,28 @@
             padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
+        .card-header-flex {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+        }
+
         .badge {
             display: inline-block; padding: 4px 8px; border-radius: 6px;
-            font-size: 0.75rem; font-weight: bold; margin-bottom: 12px;
+            font-size: 0.75rem; font-weight: bold;
         }
         .badge-recent { background-color: #334155; color: var(--text-sub); }
         .badge-next { background-color: #0284c7; color: #ffffff; }
+
+        .team-select-dropdown {
+            background-color: #0f172a;
+            color: var(--accent);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 4px 8px;
+            font-size: 0.78rem;
+            font-weight: bold;
+            outline: none;
+            cursor: pointer;
+        }
 
         .player-info h2 { margin: 0; font-size: 1.3rem; }
         .player-info p { margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-sub); }
@@ -128,7 +144,7 @@
             </div>
             <div class="player-card-item" onclick="selectPlayer('jaehyuk')">
                 <h3>이재혁</h3>
-                <p>내야수 | 게임원 공식 기록</p>
+                <p>내야수 | 3개 소속팀 통합 기록</p>
             </div>
         </div>
     </div>
@@ -142,29 +158,30 @@
             <p style="color: var(--text-sub); font-size: 0.85rem;">멀티 플랫폼 기록 분석 대시보드</p>
         </div>
 
-        <div class="platform-tab-container" id="platform-tabs" style="display: none;">
-            <button class="tab-btn active" onclick="switchPlatformTab('combined', this)">통합 기록</button>
-            <button class="tab-btn" onclick="switchPlatformTab('gameone', this)">게임원</button>
-            <button class="tab-btn" onclick="switchPlatformTab('nicecatch', this)">나이스캐치</button>
-        </div>
+        <div class="platform-tab-container" id="platform-tabs" style="display: none;"></div>
 
-        <!-- 1. 프로필 & 시즌 기록 -->
+        <!-- 1. 프로필 & 시즌 기록 (통합 성적 고정) -->
         <div class="card">
             <div class="player-info">
                 <h2 id="p-name">선수 이름</h2>
                 <p id="p-team">팀 정보</p>
             </div>
             <div class="stats-grid">
-                <div class="stat-item"><span class="label" id="lbl-avg">타율</span><span class="val" id="st-avg">-</span></div>
-                <div class="stat-item"><span class="label" id="lbl-hits">안타</span><span class="val" id="st-hits">-</span></div>
+                <div class="stat-item"><span class="label" id="lbl-avg">통합타율</span><span class="val" id="st-avg">-</span></div>
+                <div class="stat-item"><span class="label" id="lbl-hits">총안타</span><span class="val" id="st-hits">-</span></div>
                 <div class="stat-item"><span class="label">홈런</span><span class="val" id="st-hr">-</span></div>
-                <div class="stat-item"><span class="label" id="lbl-ops">OPS</span><span class="val" id="st-ops">-</span></div>
+                <div class="stat-item"><span class="label" id="lbl-ops">통합OPS</span><span class="val" id="st-ops">-</span></div>
             </div>
         </div>
 
-        <!-- 2. 최근 5경기 기록 -->
+        <!-- 2. 최근 5경기 기록 (소속팀 선택 드롭박스 포함) -->
         <div class="card">
-            <span class="badge badge-recent">RECENT 5 GAMES</span>
+            <div class="card-header-flex">
+                <span class="badge badge-recent">RECENT 5 GAMES</span>
+                <select id="team-filter-select" class="team-select-dropdown" onchange="onTeamFilterChange(this.value)">
+                    <option value="전체 소속팀">전체 소속팀</option>
+                </select>
+            </div>
             <ul class="game-list" id="recent-games-list">
                 <li class="game-item">기록 불러오는 중...</li>
             </ul>
@@ -172,7 +189,9 @@
 
         <!-- 3. 다음 경기 일정 -->
         <div class="card">
-            <span class="badge badge-next">NEXT GAME</span>
+            <div class="card-header-flex">
+                <span class="badge badge-next">NEXT GAME</span>
+            </div>
             <div id="next-games-container">일정 확인 중...</div>
         </div>
     </div>
@@ -195,25 +214,51 @@
 
     async function loadPlayerData(playerId) {
         try {
-            // 배포용 상대 경로로 수정 적용됨
-            const response = await fetch(`/api/player/${playerId}`);
+            const baseUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
+            const response = await fetch(`${baseUrl}/api/player/${playerId}`);
+            if (!response.ok) throw new Error(`HTTP 에러: ${response.status}`);
+            
             globalPlayerData = await response.json();
 
             document.getElementById('p-name').innerText = `${globalPlayerData.player_info.name} (${globalPlayerData.player_info.back_number})`;
             document.getElementById('p-team').innerText = `${globalPlayerData.player_info.team_name} | ${globalPlayerData.player_info.position}`;
 
             const tabContainer = document.getElementById('platform-tabs');
+            tabContainer.innerHTML = '';
+
+            // 플랫폼 탭 유무 분기
             if (globalPlayerData.player_info.has_multi_platform) {
+                const platforms = globalPlayerData.platforms;
+                Object.keys(platforms).forEach((key, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = `tab-btn ${idx === 0 ? 'active' : ''}`;
+                    btn.innerText = platforms[key].label;
+                    btn.onclick = () => switchPlatformTab(key, btn);
+                    tabContainer.appendChild(btn);
+                });
                 tabContainer.style.display = 'flex';
                 switchPlatformTab('combined', tabContainer.children[0]);
             } else {
                 tabContainer.style.display = 'none';
-                renderPlatformData('gameone');
+                renderPlatformData('combined');
+            }
+
+            // 하단 드롭박스 팀 목록 세팅
+            const selectEl = document.getElementById('team-filter-select');
+            selectEl.innerHTML = '';
+            
+            if (globalPlayerData.player_info.teams) {
+                globalPlayerData.player_info.teams.forEach(teamName => {
+                    const opt = document.createElement('option');
+                    opt.value = teamName;
+                    opt.innerText = teamName;
+                    selectEl.appendChild(opt);
+                });
             }
 
         } catch (error) {
             console.error('데이터 불러오기 실패:', error);
-            alert('데이터 수집 중 오류가 발생했습니다.');
+            alert('데이터 수집 중 오류가 발생했습니다. 백엔드 서버가 구동 중인지 확인하세요.');
             goBackToSelection();
         }
     }
@@ -229,41 +274,16 @@
         const platformData = globalPlayerData.platforms[platformKey];
         if (!platformData) return;
 
-        if (platformKey === 'combined') {
-            document.getElementById('lbl-avg').innerText = '합산타율';
-            document.getElementById('lbl-hits').innerText = '총안타';
-            document.getElementById('lbl-ops').innerText = '합산OPS';
-        } else {
-            document.getElementById('lbl-avg').innerText = '타율';
-            document.getElementById('lbl-hits').innerText = '안타';
-            document.getElementById('lbl-ops').innerText = 'OPS';
-        }
-
+        // 상단 통합 기록수치 고정 렌더링
         document.getElementById('st-avg').innerText = platformData.season_stats.avg;
         document.getElementById('st-hits').innerText = platformData.season_stats.hits;
         document.getElementById('st-hr').innerText = platformData.season_stats.hr;
         document.getElementById('st-ops').innerText = platformData.season_stats.ops;
 
-        const recentListEl = document.getElementById('recent-games-list');
-        recentListEl.innerHTML = '';
+        // 최근 5경기 리스트
+        renderRecentGamesList(platformData.recent_games);
 
-        if (platformData.recent_games && platformData.recent_games.length > 0) {
-            platformData.recent_games.forEach(game => {
-                const li = document.createElement('li');
-                li.className = 'game-item';
-                li.innerHTML = `
-                    <div>
-                        <div>vs ${game.opponent}</div>
-                        <div class="game-date">${game.date}</div>
-                    </div>
-                    <div class="game-stat">${game.stat}</div>
-                `;
-                recentListEl.appendChild(li);
-            });
-        } else {
-            recentListEl.innerHTML = '<li class="game-item" style="color:var(--text-sub);">나이스캐치는 다음 경기 일정 정보만 제공됩니다.</li>';
-        }
-
+        // 다음 경기 일정
         const nextGames = platformData.next_games || globalPlayerData.next_games;
         const nextContainer = document.getElementById('next-games-container');
         nextContainer.innerHTML = '';
@@ -280,6 +300,38 @@
             });
         } else {
             nextContainer.innerHTML = '<div>예정된 다음 경기가 없습니다.</div>';
+        }
+    }
+
+    // 드롭박스 선택 시: 상단 수치는 유지되고 최근 5경기 리스트만 갱신
+    function onTeamFilterChange(selectedTeam) {
+        const combinedData = globalPlayerData.platforms.combined;
+        if (combinedData && combinedData.team_recents && combinedData.team_recents[selectedTeam]) {
+            renderRecentGamesList(combinedData.team_recents[selectedTeam]);
+        } else {
+            renderRecentGamesList(combinedData.recent_games);
+        }
+    }
+
+    function renderRecentGamesList(games) {
+        const recentListEl = document.getElementById('recent-games-list');
+        recentListEl.innerHTML = '';
+
+        if (games && games.length > 0) {
+            games.forEach(game => {
+                const li = document.createElement('li');
+                li.className = 'game-item';
+                li.innerHTML = `
+                    <div>
+                        <div>vs ${game.opponent}</div>
+                        <div class="game-date">${game.date}</div>
+                    </div>
+                    <div class="game-stat">${game.stat}</div>
+                `;
+                recentListEl.appendChild(li);
+            });
+        } else {
+            recentListEl.innerHTML = '<li class="game-item" style="color:var(--text-sub);">최근 경기 기록이 없습니다.</li>';
         }
     }
 </script>
