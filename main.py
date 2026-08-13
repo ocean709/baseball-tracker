@@ -1,10 +1,3 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-import requests
-from bs4 import BeautifulSoup
-import re
-import urllib3
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,6 +18,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+MY_COOKIE = "PHPSESSID=aeoms26i6tggs7vsgrfovuko20"
 
 PLAYERS_DB = {
     "ebada": {
@@ -48,15 +43,11 @@ PLAYERS_DB = {
     },
     "jaehyuk": {
         "name": "이재혁",
-        "back_number": "우투좌타",
+        "back_number": "13",
         "team_name": "Mavericks / 무적LG / MIZAR",
-        "position": "내야수",
+        "position": "내야수 (우투좌타)",
         "gameone_url": "https://www.gameone.kr/locker/record/sum?group_code=B65B172516B4454C2FC8478691E4D760",
-        
-        # 게임원 라커룸 2026시즌 공식 통합 성적
         "gameone_official_stats": {"avg": ".418", "hits": "33", "hr": "0", "ops": "1.108"},
-        
-        # 소속팀별 최근 경기 데이터 (날짜 정보 포함)
         "mavericks_recent": [
             {"date": "08.09(일)", "sort_key": "08.09", "opponent": "IRONY (Mavericks)", "stat": "4타석 2타수 0안타 0득점 1타점"},
             {"date": "07.19(일)", "sort_key": "07.19", "opponent": "The Players (Mavericks)", "stat": "4타석 3타수 3안타 2득점 1타점"},
@@ -74,6 +65,47 @@ PLAYERS_DB = {
         "mizar_recent": [
             {"date": "07.25(토)", "sort_key": "07.25", "opponent": "언디피티드 남 (MIZAR)", "stat": "3타석 2타수 0안타 0득점 1타점"},
             {"date": "06.27(토)", "sort_key": "06.27", "opponent": "빨간마일 (MIZAR)", "stat": "3타석 3타수 1안타 1득점 0타점"}
+        ]
+    },
+    "hwanjoo": {
+        "name": "황환주",
+        "back_number": "33",
+        "team_name": "MAVERICKS / 무적LG / 초인",
+        "position": "내야수",
+        "gameone_url": "https://www.gameone.kr/locker/?group_code=P8AIVLPI0N4FB6KQZSVCT9BDGNO3WRYZ",
+        "nicecatch_player_id": "f2210158-7bc3-4224-9cca-c409ddf973f7",
+        "nicecatch_api_url": "http://www.nicecatch.kr/api/team/31125b52-64db-4568-a8ef-3b18513cea75",
+        
+        "gameone_official_stats": {"avg": ".319", "hits": 15, "hr": 0, "ops": ".955", "ab": 47},
+        "nicecatch_official_stats": {"avg": ".200", "hits": 1, "hr": 0, "ops": ".733", "ab": 5},
+
+        "mavericks_recent": [
+            {"date": "08.09(일)", "sort_key": "08.09", "opponent": "IRONY (MAVERICKS)", "stat": "4타석 2타수 1안타 2득점 0타점"},
+            {"date": "07.19(일)", "sort_key": "07.19", "opponent": "The Players (MAVERICKS)", "stat": "3타석 3타수 2안타 0득점 1타점"},
+            {"date": "07.05(일)", "sort_key": "07.05", "opponent": "레드빅 (MAVERICKS)", "stat": "2타석 1타수 0안타 0득점 1타점"},
+            {"date": "05.17(일)", "sort_key": "05.17", "opponent": "트래피스 (MAVERICKS)", "stat": "3타석 2타수 1안타 0득점 1타점"},
+            {"date": "03.22(일)", "sort_key": "03.22", "opponent": "HustlePlays (MAVERICKS)", "stat": "3타석 2타수 1안타 1득점 1타점"}
+        ],
+        "lgtwins_recent": [
+            {"date": "07.26(일)", "sort_key": "07.26", "opponent": "NYDS (무적LG)", "stat": "3타석 2타수 1안타 1득점 3타점"},
+            {"date": "07.19(일)", "sort_key": "07.19", "opponent": "Airline Baseball T (무적LG)", "stat": "5타석 4타수 1안타 2득점 2타점"},
+            {"date": "07.12(일)", "sort_key": "07.12", "opponent": "CB Bros (무적LG)", "stat": "3타석 3타수 0안타 0득점 0타점"},
+            {"date": "07.05(일)", "sort_key": "07.05", "opponent": "귀가본능 (무적LG)", "stat": "4타석 3타수 2안타 2득점 1타점"},
+            {"date": "06.21(일)", "sort_key": "06.21", "opponent": "Winning Takers (무적LG)", "stat": "4타석 3타수 1안타 1득점 0타점"}
+        ]
+    },
+    "jeonwoong": {
+        "name": "강전웅",
+        "back_number": "29",
+        "team_name": "MAVERICKS (매버릭스)",
+        "position": "외야수",
+        "gameone_url": "https://www.gameone.kr/locker/?group_code=5BO1OHKJROG000LP2V4",
+        "gameone_official_stats": {"avg": ".250", "hits": "2", "hr": "0", "ops": ".775"},
+        "mavericks_recent": [
+            {"date": "08.09(일)", "opponent": "IRONY", "stat": "4타석 4타수 1안타 1득점 0타점"},
+            {"date": "07.19(일)", "opponent": "The Players", "stat": "3타석 1타수 0안타 2득점 0타점"},
+            {"date": "07.05(일)", "opponent": "레드빅", "stat": "1타석 1타수 0안타 0득점 0타점"},
+            {"date": "06.14(일)", "opponent": "미제스틱베이스볼", "stat": "2타석 2타수 1안타 1득점 0타점"}
         ]
     }
 }
@@ -158,14 +190,67 @@ def get_player_data(player_id: str):
             }
         }
 
-    else: # 이재혁
-        off_s = p_info["gameone_official_stats"]
+    elif player_id == "hwanjoo":
+        go_s = p_info["gameone_official_stats"]
+        nc_s = p_info["nicecatch_official_stats"]
         
+        tot_ab = go_s["ab"] + nc_s["ab"]
+        tot_hits = go_s["hits"] + nc_s["hits"]
+        tot_hr = go_s["hr"] + nc_s["hr"]
+        combined_avg = f".{int(round(tot_hits / tot_ab, 3) * 1000):03d}" if tot_ab > 0 else ".000"
+
+        m_rec = p_info["mavericks_recent"]
+        lg_rec = p_info["lgtwins_recent"]
+        all_recents_merged = sorted(m_rec + lg_rec, key=lambda x: x["sort_key"], reverse=True)
+
+        go_next = [
+            {"date": "08월16일(일) 06:00", "opponent": "Tyrant Baseball", "stadium": "에코리그", "league": "무적LG트윈스"},
+            {"date": "08월23일(일) 06:00", "opponent": "안드로메다", "stadium": "명품구장", "league": "MAVERICKS"}
+        ]
+        nc_next = fetch_nicecatch_schedules_from_api(p_info["nicecatch_api_url"])
+
+        return {
+            "player_info": {
+                "name": p_info["name"],
+                "back_number": p_info["back_number"],
+                "team_name": p_info["team_name"],
+                "position": p_info["position"],
+                "has_multi_platform": True,
+                "teams": ["전체 소속팀", "MAVERICKS", "무적LG트윈스"]
+            },
+            "platforms": {
+                "combined": {
+                    "label": "전체 통합",
+                    "season_stats": {"avg": combined_avg, "hits": str(tot_hits), "hr": str(tot_hr), "ops": ".934"},
+                    "recent_games": all_recents_merged[:5],
+                    "team_recents": {
+                        "전체 소속팀": all_recents_merged[:5],
+                        "MAVERICKS": m_rec[:5],
+                        "무적LG트윈스": lg_rec[:5]
+                    },
+                    "next_games": go_next + nc_next
+                },
+                "gameone": {
+                    "label": "게임원",
+                    "season_stats": {"avg": go_s["avg"], "hits": str(go_s["hits"]), "hr": str(go_s["hr"]), "ops": go_s["ops"]},
+                    "recent_games": all_recents_merged[:5],
+                    "next_games": go_next
+                },
+                "nicecatch": {
+                    "label": "나이스캐치",
+                    "season_stats": {"avg": nc_s["avg"], "hits": str(nc_s["hits"]), "hr": str(nc_s["hr"]), "ops": nc_s["ops"]},
+                    "recent_games": [],
+                    "next_games": nc_next
+                }
+            }
+        }
+
+    elif player_id == "jaehyuk":
+        off_s = p_info["gameone_official_stats"]
         m_rec = p_info["mavericks_recent"]
         lg_rec = p_info["lgtwins_recent"]
         mz_rec = p_info["mizar_recent"]
 
-        # 3개 팀 전체 경기를 날짜 최신순으로 정렬
         all_recents_merged = sorted(m_rec + lg_rec + mz_rec, key=lambda x: x["sort_key"], reverse=True)
 
         next_games = [
@@ -195,6 +280,33 @@ def get_player_data(player_id: str):
                         "MIZAR": mz_rec[:5]
                     },
                     "next_games": next_games
+                }
+            }
+        }
+
+    else: # 강전웅
+        off_s = p_info["gameone_official_stats"]
+        m_rec = p_info["mavericks_recent"]
+        go_next_games = [{"date": "08월23일(일) 06:00", "opponent": "안드로메다", "stadium": "명품구장", "league": "MAVERICKS"}]
+
+        return {
+            "player_info": {
+                "name": p_info["name"],
+                "back_number": p_info["back_number"],
+                "team_name": p_info["team_name"],
+                "position": p_info["position"],
+                "has_multi_platform": False,
+                "teams": ["MAVERICKS"]
+            },
+            "platforms": {
+                "combined": {
+                    "label": "게임원 기록",
+                    "season_stats": {"avg": off_s["avg"], "hits": off_s["hits"], "hr": off_s["hr"], "ops": off_s["ops"]},
+                    "recent_games": m_rec,
+                    "team_recents": {
+                        "MAVERICKS": m_rec
+                    },
+                    "next_games": go_next_games
                 }
             }
         }
