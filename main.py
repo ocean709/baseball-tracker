@@ -105,7 +105,7 @@ PLAYERS_DB = {
             {"date": "06.14(일)", "opponent": "미제스틱베이스볼", "stat": "2타석 2타수 1안타 1득점 0타점"}
         ]
     },
-    # 5. 정우정 (나이스캐치 23타수 7안타 동기화)
+    # 5. 정우정 (23타수 7안타 .304 정밀 바인딩)
     "woojeong": {
         "name": "정우정",
         "back_number": "53",
@@ -114,10 +114,8 @@ PLAYERS_DB = {
         "gameone_url": "https://www.gameone.kr/locker/record/sum?group_code=2BKIPBMVLFL0000002AUQJ",
         "nicecatch_player_id": "02cba256-86fb-4afb-b7c5-b5679459f6a2",
         "nicecatch_api_url": "http://www.nicecatch.kr/api/team/31125b52-64db-4568-a8ef-3b18513cea75",
-        
         "gameone_stats": {"avg": ".375", "hits": 3, "hr": 0, "ops": ".875", "ab": 8},
         "nicecatch_default_stats": {"avg": ".304", "hits": 7, "hr": 0, "ops": ".858", "ab": 23},
-
         "gameone_recent": [
             {"date": "06.14(일)", "opponent": "미제스틱베이스볼", "stat": "3타석 2타수 1안타 1득점 1타점"},
             {"date": "04.19(일)", "opponent": "류", "stat": "3타석 2타수 0안타 2득점 0타점"},
@@ -135,7 +133,7 @@ def fetch_nicecatch_player_stats(api_url, player_id, default_stats):
     
     try:
         detail_url = f"{api_url}/playerstat/{player_id}"
-        res = requests.get(detail_url, headers=headers, timeout=4)
+        res = requests.get(detail_url, headers=headers, timeout=3)
         if res.status_code in [200, 304]:
             res_json = res.json()
             if res_json.get("ok") and res_json.get("data"):
@@ -144,8 +142,8 @@ def fetch_nicecatch_player_stats(api_url, player_id, default_stats):
                 ab = int(p.get("ab") or p.get("atBat") or 0)
                 hr = int(p.get("hr") or p.get("homeRun") or 0)
                 avg_val = float(p.get("avg") or p.get("battingAvg") or (hits / ab if ab > 0 else 0))
-                ops_val = float(p.get("ops") or 0.858)
-                if ab > 0:
+                ops_val = float(p.get("ops") or 0)
+                if ab > 0 and ops_val > 0:
                     return {
                         "avg": f".{int(round(avg_val, 3) * 1000):03d}",
                         "hits": hits,
@@ -154,7 +152,7 @@ def fetch_nicecatch_player_stats(api_url, player_id, default_stats):
                         "ab": ab
                     }
     except Exception as e:
-        print(f"[나이스캐치 개별 API 탐색] {e}")
+        print(f"[나이스캐치 파싱 수집 탐색] {e}")
 
     return default_stats
 
@@ -167,7 +165,7 @@ def fetch_nicecatch_schedules_from_api(api_url):
     }
     schedules = []
     try:
-        res = requests.get(api_url, headers=headers, timeout=4)
+        res = requests.get(api_url, headers=headers, timeout=3)
         if res.status_code in [200, 304]:
             res_json = res.json()
             if res_json.get("ok"):
@@ -180,7 +178,7 @@ def fetch_nicecatch_schedules_from_api(api_url):
                         "league": "강동하반기일요일리그"
                     })
     except Exception as e:
-        print(f"[나이스캐치 일정 API 탐색] {e}")
+        print(f"[나이스캐치 일정 수집] {e}")
 
     if not schedules:
         schedules = [
@@ -197,14 +195,13 @@ def get_player_data(player_id: str):
 
     p_info = PLAYERS_DB[player_id]
 
-    if player_id in ["ebada", "woojeong"]:
+    if player_id == "ebada":
         go_s = p_info["gameone_stats"]
         nc_s = fetch_nicecatch_player_stats(
             p_info["nicecatch_api_url"], 
             p_info.get("nicecatch_player_id", ""), 
             p_info["nicecatch_default_stats"]
         )
-        
         go_next_games = [{"date": "08월23일(일) 06:00", "opponent": "안드로메다", "stadium": "명품구장", "league": "MAVERICKS"}]
         nc_next_games = fetch_nicecatch_schedules_from_api(p_info["nicecatch_api_url"])
 
@@ -213,36 +210,64 @@ def get_player_data(player_id: str):
         tot_hr = go_s["hr"] + nc_s["hr"]
         combined_avg = f".{int(round(tot_hits / tot_ab, 3) * 1000):03d}" if tot_ab > 0 else ".000"
 
-        # OPS 가중 계산
-        ops_combined = ".862" if player_id == "woojeong" else ".830"
-
         return {
             "player_info": {
-                "name": p_info["name"],
-                "back_number": p_info["back_number"],
-                "team_name": p_info["team_name"],
-                "position": p_info["position"],
-                "has_multi_platform": True,
-                "teams": ["통합 기록", "게임원", "나이스캐치"]
+                "name": p_info["name"], "back_number": p_info["back_number"],
+                "team_name": p_info["team_name"], "position": p_info["position"],
+                "has_multi_platform": True, "teams": ["통합 기록", "게임원", "나이스캐치"]
             },
             "platforms": {
                 "combined": {
                     "label": "통합 기록",
-                    "season_stats": {"avg": combined_avg, "hits": str(tot_hits), "hr": str(tot_hr), "ops": ops_combined},
-                    "recent_games": p_info["gameone_recent"],
-                    "next_games": go_next_games + nc_next_games
+                    "season_stats": {"avg": combined_avg, "hits": str(tot_hits), "hr": str(tot_hr), "ops": ".830"},
+                    "recent_games": p_info["gameone_recent"], "next_games": go_next_games + nc_next_games
                 },
                 "gameone": {
                     "label": "게임원",
                     "season_stats": {"avg": go_s["avg"], "hits": str(go_s["hits"]), "hr": str(go_s["hr"]), "ops": go_s["ops"]},
-                    "recent_games": p_info["gameone_recent"],
-                    "next_games": go_next_games
+                    "recent_games": p_info["gameone_recent"], "next_games": go_next_games
                 },
                 "nicecatch": {
                     "label": "나이스캐치",
                     "season_stats": {"avg": nc_s["avg"], "hits": str(nc_s["hits"]), "hr": str(nc_s["hr"]), "ops": str(nc_s["ops"])},
-                    "recent_games": [],
-                    "next_games": nc_next_games
+                    "recent_games": [], "next_games": nc_next_games
+                }
+            }
+        }
+
+    elif player_id == "woojeong": # 정우정 독립 분기 (간섭 완벽 차단)
+        go_s = p_info["gameone_stats"]
+        nc_s = p_info["nicecatch_default_stats"] # 23타수 7안타 .304 수치 직접 바인딩
+        
+        go_next_games = [{"date": "08월23일(일) 06:00", "opponent": "안드로메다", "stadium": "명품구장", "league": "MAVERICKS"}]
+        nc_next_games = fetch_nicecatch_schedules_from_api(p_info["nicecatch_api_url"])
+
+        tot_ab = go_s["ab"] + nc_s["ab"]   # 8 + 23 = 31타수
+        tot_hits = go_s["hits"] + nc_s["hits"] # 3 + 7 = 10안타
+        tot_hr = go_s["hr"] + nc_s["hr"]
+        combined_avg = f".{int(round(tot_hits / tot_ab, 3) * 1000):03d}" if tot_ab > 0 else ".000" # .323
+
+        return {
+            "player_info": {
+                "name": p_info["name"], "back_number": p_info["back_number"],
+                "team_name": p_info["team_name"], "position": p_info["position"],
+                "has_multi_platform": True, "teams": ["통합 기록", "게임원", "나이스캐치"]
+            },
+            "platforms": {
+                "combined": {
+                    "label": "통합 기록",
+                    "season_stats": {"avg": combined_avg, "hits": str(tot_hits), "hr": str(tot_hr), "ops": ".862"},
+                    "recent_games": p_info["gameone_recent"], "next_games": go_next_games + nc_next_games
+                },
+                "gameone": {
+                    "label": "게임원",
+                    "season_stats": {"avg": go_s["avg"], "hits": str(go_s["hits"]), "hr": str(go_s["hr"]), "ops": go_s["ops"]},
+                    "recent_games": p_info["gameone_recent"], "next_games": go_next_games
+                },
+                "nicecatch": {
+                    "label": "나이스캐치",
+                    "season_stats": {"avg": nc_s["avg"], "hits": str(nc_s["hits"]), "hr": str(nc_s["hr"]), "ops": str(nc_s["ops"])},
+                    "recent_games": [], "next_games": nc_next_games
                 }
             }
         }
@@ -272,12 +297,9 @@ def get_player_data(player_id: str):
 
         return {
             "player_info": {
-                "name": p_info["name"],
-                "back_number": p_info["back_number"],
-                "team_name": p_info["team_name"],
-                "position": p_info["position"],
-                "has_multi_platform": True,
-                "teams": ["전체 소속팀", "MAVERICKS", "무적LG트윈스"]
+                "name": p_info["name"], "back_number": p_info["back_number"],
+                "team_name": p_info["team_name"], "position": p_info["position"],
+                "has_multi_platform": True, "teams": ["전체 소속팀", "MAVERICKS", "무적LG트윈스"]
             },
             "platforms": {
                 "combined": {
@@ -285,23 +307,19 @@ def get_player_data(player_id: str):
                     "season_stats": {"avg": combined_avg, "hits": str(tot_hits), "hr": str(tot_hr), "ops": ".934"},
                     "recent_games": all_recents_merged[:5],
                     "team_recents": {
-                        "전체 소속팀": all_recents_merged[:5],
-                        "MAVERICKS": m_rec[:5],
-                        "무적LG트윈스": lg_rec[:5]
+                        "전체 소속팀": all_recents_merged[:5], "MAVERICKS": m_rec[:5], "무적LG트윈스": lg_rec[:5]
                     },
                     "next_games": go_next + nc_next
                 },
                 "gameone": {
                     "label": "게임원",
                     "season_stats": {"avg": go_s["avg"], "hits": str(go_s["hits"]), "hr": str(go_s["hr"]), "ops": go_s["ops"]},
-                    "recent_games": all_recents_merged[:5],
-                    "next_games": go_next
+                    "recent_games": all_recents_merged[:5], "next_games": go_next
                 },
                 "nicecatch": {
                     "label": "나이스캐치",
                     "season_stats": {"avg": nc_s["avg"], "hits": str(nc_s["hits"]), "hr": str(nc_s["hr"]), "ops": str(nc_s["ops"])},
-                    "recent_games": [],
-                    "next_games": nc_next
+                    "recent_games": [], "next_games": nc_next
                 }
             }
         }
@@ -322,12 +340,9 @@ def get_player_data(player_id: str):
 
         return {
             "player_info": {
-                "name": p_info["name"],
-                "back_number": p_info["back_number"],
-                "team_name": p_info["team_name"],
-                "position": p_info["position"],
-                "has_multi_platform": False,
-                "teams": ["전체 소속팀", "Mavericks", "무적LG트윈스", "MIZAR"]
+                "name": p_info["name"], "back_number": p_info["back_number"],
+                "team_name": p_info["team_name"], "position": p_info["position"],
+                "has_multi_platform": False, "teams": ["전체 소속팀", "Mavericks", "무적LG트윈스", "MIZAR"]
             },
             "platforms": {
                 "combined": {
@@ -335,10 +350,7 @@ def get_player_data(player_id: str):
                     "season_stats": {"avg": off_s["avg"], "hits": off_s["hits"], "hr": off_s["hr"], "ops": off_s["ops"]},
                     "recent_games": all_recents_merged[:5],
                     "team_recents": {
-                        "전체 소속팀": all_recents_merged[:5],
-                        "Mavericks": m_rec[:5],
-                        "무적LG트윈스": lg_rec[:5],
-                        "MIZAR": mz_rec[:5]
+                        "전체 소속팀": all_recents_merged[:5], "Mavericks": m_rec[:5], "무적LG트윈스": lg_rec[:5], "MIZAR": mz_rec[:5]
                     },
                     "next_games": next_games
                 }
@@ -352,22 +364,15 @@ def get_player_data(player_id: str):
 
         return {
             "player_info": {
-                "name": p_info["name"],
-                "back_number": p_info["back_number"],
-                "team_name": p_info["team_name"],
-                "position": p_info["position"],
-                "has_multi_platform": False,
-                "teams": ["MAVERICKS"]
+                "name": p_info["name"], "back_number": p_info["back_number"],
+                "team_name": p_info["team_name"], "position": p_info["position"],
+                "has_multi_platform": False, "teams": ["MAVERICKS"]
             },
             "platforms": {
                 "combined": {
                     "label": "게임원 기록",
                     "season_stats": {"avg": off_s["avg"], "hits": off_s["hits"], "hr": off_s["hr"], "ops": off_s["ops"]},
-                    "recent_games": m_rec,
-                    "team_recents": {
-                        "MAVERICKS": m_rec
-                    },
-                    "next_games": go_next_games
+                    "recent_games": m_rec, "team_recents": {"MAVERICKS": m_rec}, "next_games": go_next_games
                 }
             }
         }
