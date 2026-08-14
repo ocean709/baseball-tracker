@@ -22,6 +22,7 @@ app.add_middleware(
 MY_COOKIE = "PHPSESSID=aeoms26i6tggs7vsgrfovuko20"
 
 PLAYERS_DB = {
+    # 1. 이바다
     "ebada": {
         "name": "이바다",
         "back_number": "2",
@@ -29,7 +30,6 @@ PLAYERS_DB = {
         "position": "내야수",
         "gameone_url": "https://www.gameone.kr/locker/?group_code=4FTVYZBDRQ03POLMAEJCW5S261XU879K",
         "nicecatch_url": "http://www.nicecatch.kr/team/31125b52-64db-4568-a8ef-3b18513cea75/playerstat/1abb154d-9758-4623-bf13-1cb0893a1f29",
-        "gameone_schedule_url": "https://www.gameone.kr/club/info/schedule/table?club_idx=38528",
         "nicecatch_api_url": "http://www.nicecatch.kr/api/team/31125b52-64db-4568-a8ef-3b18513cea75",
         "gameone_stats": {"avg": ".150", "hits": 3, "hr": 0, "ops": ".382", "ab": 20},
         "gameone_recent": [
@@ -41,6 +41,7 @@ PLAYERS_DB = {
         ],
         "nicecatch_stats": {"avg": ".407", "hits": 11, "hr": 0, "ops": "1.025", "ab": 27}
     },
+    # 2. 이재혁
     "jaehyuk": {
         "name": "이재혁",
         "back_number": "13",
@@ -67,11 +68,12 @@ PLAYERS_DB = {
             {"date": "06.27(토)", "sort_key": "06.27", "opponent": "빨간마일 (MIZAR)", "stat": "3타석 3타수 1안타 1득점 0타점"}
         ]
     },
+    # 3. 황환주
     "hwanjoo": {
         "name": "황환주",
         "back_number": "33",
         "team_name": "MAVERICKS / 무적LG / 초인",
-        "position": "내야수",
+        "position": "내야수 (우투우타)",
         "gameone_url": "https://www.gameone.kr/locker/?group_code=P8AIVLPI0N4FB6KQZSVCT9BDGNO3WRYZ",
         "nicecatch_player_id": "f2210158-7bc3-4224-9cca-c409ddf973f7",
         "nicecatch_api_url": "http://www.nicecatch.kr/api/team/31125b52-64db-4568-a8ef-3b18513cea75",
@@ -94,11 +96,12 @@ PLAYERS_DB = {
             {"date": "06.21(일)", "sort_key": "06.21", "opponent": "Winning Takers (무적LG)", "stat": "4타석 3타수 1안타 1득점 0타점"}
         ]
     },
+    # 4. 강전웅
     "jeonwoong": {
         "name": "강전웅",
         "back_number": "29",
         "team_name": "MAVERICKS (매버릭스)",
-        "position": "외야수",
+        "position": "외야수 (우투우타)",
         "gameone_url": "https://www.gameone.kr/locker/?group_code=5BO1OHKJROG000LP2V4",
         "gameone_official_stats": {"avg": ".250", "hits": "2", "hr": "0", "ops": ".775"},
         "mavericks_recent": [
@@ -106,6 +109,25 @@ PLAYERS_DB = {
             {"date": "07.19(일)", "opponent": "The Players", "stat": "3타석 1타수 0안타 2득점 0타점"},
             {"date": "07.05(일)", "opponent": "레드빅", "stat": "1타석 1타수 0안타 0득점 0타점"},
             {"date": "06.14(일)", "opponent": "미제스틱베이스볼", "stat": "2타석 2타수 1안타 1득점 0타점"}
+        ]
+    },
+    # 5. 정우정
+    "woojeong": {
+        "name": "정우정",
+        "back_number": "4",
+        "team_name": "MAVERICKS / 나이스캐치(초인)",
+        "position": "외야수 (우투우타)",
+        "gameone_url": "https://www.gameone.kr/locker/record/sum?group_code=2BKIPBMVLFL0000002AUQJ",
+        "nicecatch_url": "http://www.nicecatch.kr/team/31125b52-64db-4568-a8ef-3b18513cea75/playerstat/02cba256-86fb-4afb-b7c5-b5679459f6a2",
+        "nicecatch_api_url": "http://www.nicecatch.kr/api/team/31125b52-64db-4568-a8ef-3b18513cea75",
+        
+        "gameone_stats": {"avg": ".375", "hits": 3, "hr": 0, "ops": ".875", "ab": 8},
+        "nicecatch_stats": {"avg": ".333", "hits": 4, "hr": 0, "ops": ".800", "ab": 12},
+
+        "gameone_recent": [
+            {"date": "06.14(일)", "opponent": "미제스틱베이스볼", "stat": "3타석 2타수 1안타 1득점 1타점"},
+            {"date": "04.19(일)", "opponent": "류", "stat": "3타석 2타수 0안타 2득점 0타점"},
+            {"date": "03.15(일)", "opponent": "Baseballclub BBs", "stat": "4타석 4타수 2안타 2득점 1타점"}
         ]
     }
 }
@@ -148,10 +170,10 @@ def get_player_data(player_id: str):
 
     p_info = PLAYERS_DB[player_id]
 
-    if player_id == "ebada":
+    if player_id in ["ebada", "woojeong"]:
         go_s = p_info["gameone_stats"]
         nc_s = p_info["nicecatch_stats"]
-        go_next_games = [{"date": "08월23일(일) 06:00", "opponent": "안드로메다", "stadium": "명품구장", "league": "게임원 리그"}]
+        go_next_games = [{"date": "08월23일(일) 06:00", "opponent": "안드로메다", "stadium": "명품구장", "league": "MAVERICKS"}]
         nc_next_games = fetch_nicecatch_schedules_from_api(p_info["nicecatch_api_url"])
 
         tot_ab = go_s["ab"] + nc_s["ab"]
@@ -171,7 +193,7 @@ def get_player_data(player_id: str):
             "platforms": {
                 "combined": {
                     "label": "통합 기록",
-                    "season_stats": {"avg": combined_avg, "hits": str(tot_hits), "hr": str(tot_hr), "ops": ".752"},
+                    "season_stats": {"avg": combined_avg, "hits": str(tot_hits), "hr": str(tot_hr), "ops": ".830"},
                     "recent_games": p_info["gameone_recent"],
                     "next_games": go_next_games + nc_next_games
                 },

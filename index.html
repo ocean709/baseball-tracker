@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>매버릭스 숙제검사</title>
+    <title>사회인 야구 멀티 플랫폼 트래커</title>
     
     <style>
         :root {
@@ -131,28 +131,37 @@
 
 <div class="container">
 
-    <!-- [뷰 1] 선수 선택 화면 -->
+    <!-- [뷰 1] 선수 선택 화면 (요청하신 순서 반영) -->
     <div id="selection-view">
         <div class="header">
-            <h1>MAVERICKS STATS TRACKER</h1>
+            <h1>BASEBALL TRACKER</h1>
             <p style="color: var(--text-sub); font-size: 0.9rem;">기록을 확인할 선수를 선택하세요</p>
         </div>
         <div class="player-select-list">
+            <!-- 1. 이바다 -->
             <div class="player-card-item" onclick="selectPlayer('ebada')">
-                <h3>이바다</h3>
+                <h3>이바다 (No.2)</h3>
                 <p>내야수 | 게임원 + 나이스캐치 통합</p>
             </div>
+            <!-- 2. 이재혁 -->
             <div class="player-card-item" onclick="selectPlayer('jaehyuk')">
-                <h3>이재혁</h3>
+                <h3>이재혁 (No.13)</h3>
                 <p>내야수 | 3개 소속팀 통합 기록</p>
             </div>
+            <!-- 3. 황환주 -->
             <div class="player-card-item" onclick="selectPlayer('hwanjoo')">
-                <h3>황환주</h3>
+                <h3>황환주 (No.33)</h3>
                 <p>내야수 | 게임원 + 나이스캐치 멀티 통합</p>
             </div>
+            <!-- 4. 강전웅 -->
             <div class="player-card-item" onclick="selectPlayer('jeonwoong')">
-                <h3>강전웅</h3>
+                <h3>강전웅 (No.29)</h3>
                 <p>외야수 | MAVERICKS 공식 기록</p>
+            </div>
+            <!-- 5. 정우정 -->
+            <div class="player-card-item" onclick="selectPlayer('woojeong')">
+                <h3>정우정 (No.4)</h3>
+                <p>외야수 | 게임원 + 나이스캐치 통합</p>
             </div>
         </div>
     </div>
@@ -228,7 +237,7 @@
             
             globalPlayerData = await response.json();
 
-            document.getElementById('p-name').innerText = `${globalPlayerData.player_info.name} (${globalPlayerData.player_info.back_number})`;
+            document.getElementById('p-name').innerText = `${globalPlayerData.player_info.name} (No.${globalPlayerData.player_info.back_number})`;
             document.getElementById('p-team').innerText = `${globalPlayerData.player_info.team_name} | ${globalPlayerData.player_info.position}`;
 
             const tabContainer = document.getElementById('platform-tabs');
