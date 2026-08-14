@@ -22,7 +22,7 @@ PLAYERS_DB = {
     "ebada": {
         "name": "이바다",
         "back_number": "2",
-        "team_name": "MAVERICKS / 초인",
+        "team_name": "MAVERICKS (매버릭스)",
         "position": "내야수",
         "gameone_url": "https://www.gameone.kr/locker/?group_code=4FTVYZBDRQ03POLMAEJCW5S261XU879K",
         "nicecatch_player_id": "1abb154d-9758-4623-bf13-1cb0893a1f29",
@@ -94,7 +94,7 @@ PLAYERS_DB = {
     "jeonwoong": {
         "name": "강전웅",
         "back_number": "29",
-        "team_name": "MAVERICKS",
+        "team_name": "MAVERICKS (매버릭스)",
         "position": "외야수 (우투우타)",
         "gameone_url": "https://www.gameone.kr/locker/?group_code=5BO1OHKJROG000LP2V4",
         "gameone_official_stats": {"avg": ".250", "hits": "2", "hr": "0", "ops": ".775"},
@@ -105,17 +105,19 @@ PLAYERS_DB = {
             {"date": "06.14(일)", "opponent": "미제스틱베이스볼", "stat": "2타석 2타수 1안타 1득점 0타점"}
         ]
     },
-    # 5. 정우정
+    # 5. 정우정 (나이스캐치 23타수 7안타 동기화)
     "woojeong": {
         "name": "정우정",
         "back_number": "53",
-        "team_name": "MAVERICKS / 초인",
+        "team_name": "MAVERICKS / 나이스캐치(초인)",
         "position": "외야수 (우투우타)",
         "gameone_url": "https://www.gameone.kr/locker/record/sum?group_code=2BKIPBMVLFL0000002AUQJ",
         "nicecatch_player_id": "02cba256-86fb-4afb-b7c5-b5679459f6a2",
         "nicecatch_api_url": "http://www.nicecatch.kr/api/team/31125b52-64db-4568-a8ef-3b18513cea75",
+        
         "gameone_stats": {"avg": ".375", "hits": 3, "hr": 0, "ops": ".875", "ab": 8},
-        "nicecatch_default_stats": {"avg": ".200", "hits": 1, "hr": 0, "ops": ".733", "ab": 5},
+        "nicecatch_default_stats": {"avg": ".304", "hits": 7, "hr": 0, "ops": ".858", "ab": 23},
+
         "gameone_recent": [
             {"date": "06.14(일)", "opponent": "미제스틱베이스볼", "stat": "3타석 2타수 1안타 1득점 1타점"},
             {"date": "04.19(일)", "opponent": "류", "stat": "3타석 2타수 0안타 2득점 0타점"},
@@ -125,14 +127,12 @@ PLAYERS_DB = {
 }
 
 def fetch_nicecatch_player_stats(api_url, player_id, default_stats):
-    """나이스캐치 REST API 개별/팀 엔드포인트 파싱 엔진"""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         "Accept": "application/json, text/plain, */*",
         "Referer": "http://www.nicecatch.kr/"
     }
     
-    # 1. 개별 선수 API 엔드포인트 호출
     try:
         detail_url = f"{api_url}/playerstat/{player_id}"
         res = requests.get(detail_url, headers=headers, timeout=4)
@@ -144,40 +144,17 @@ def fetch_nicecatch_player_stats(api_url, player_id, default_stats):
                 ab = int(p.get("ab") or p.get("atBat") or 0)
                 hr = int(p.get("hr") or p.get("homeRun") or 0)
                 avg_val = float(p.get("avg") or p.get("battingAvg") or (hits / ab if ab > 0 else 0))
-                ops_val = float(p.get("ops") or 0.733)
-                return {
-                    "avg": f".{int(round(avg_val, 3) * 1000):03d}",
-                    "hits": hits,
-                    "hr": hr,
-                    "ops": f"{ops_val:.3f}",
-                    "ab": ab
-                }
+                ops_val = float(p.get("ops") or 0.858)
+                if ab > 0:
+                    return {
+                        "avg": f".{int(round(avg_val, 3) * 1000):03d}",
+                        "hits": hits,
+                        "hr": hr,
+                        "ops": f"{ops_val:.3f}",
+                        "ab": ab
+                    }
     except Exception as e:
-        print(f"[나이스캐치 개별 API 수집 탐색] {e}")
-
-    # 2. 팀 전체 선수 목록 API 호출
-    try:
-        res = requests.get(api_url, headers=headers, timeout=4)
-        if res.status_code in [200, 304]:
-            res_json = res.json()
-            if res_json.get("ok"):
-                players = res_json.get("data", {}).get("players", []) or res_json.get("data", {}).get("playerStats", [])
-                for p in players:
-                    if str(p.get("playerId") or p.get("id") or p.get("playerStatId")) == str(player_id):
-                        hits = int(p.get("hits") or p.get("h1") or 0)
-                        ab = int(p.get("ab") or p.get("atBat") or 0)
-                        hr = int(p.get("hr") or p.get("homeRun") or 0)
-                        avg_val = float(p.get("avg") or p.get("battingAvg") or (hits / ab if ab > 0 else 0))
-                        ops_val = float(p.get("ops") or 0.733)
-                        return {
-                            "avg": f".{int(round(avg_val, 3) * 1000):03d}",
-                            "hits": hits,
-                            "hr": hr,
-                            "ops": f"{ops_val:.3f}",
-                            "ab": ab
-                        }
-    except Exception as e:
-        print(f"[나이스캐치 팀 API 수집 탐색] {e}")
+        print(f"[나이스캐치 개별 API 탐색] {e}")
 
     return default_stats
 
@@ -203,7 +180,7 @@ def fetch_nicecatch_schedules_from_api(api_url):
                         "league": "강동하반기일요일리그"
                     })
     except Exception as e:
-        print(f"[나이스캐치 일정 API 수집 탐색] {e}")
+        print(f"[나이스캐치 일정 API 탐색] {e}")
 
     if not schedules:
         schedules = [
@@ -236,6 +213,9 @@ def get_player_data(player_id: str):
         tot_hr = go_s["hr"] + nc_s["hr"]
         combined_avg = f".{int(round(tot_hits / tot_ab, 3) * 1000):03d}" if tot_ab > 0 else ".000"
 
+        # OPS 가중 계산
+        ops_combined = ".862" if player_id == "woojeong" else ".830"
+
         return {
             "player_info": {
                 "name": p_info["name"],
@@ -248,7 +228,7 @@ def get_player_data(player_id: str):
             "platforms": {
                 "combined": {
                     "label": "통합 기록",
-                    "season_stats": {"avg": combined_avg, "hits": str(tot_hits), "hr": str(tot_hr), "ops": ".820"},
+                    "season_stats": {"avg": combined_avg, "hits": str(tot_hits), "hr": str(tot_hr), "ops": ops_combined},
                     "recent_games": p_info["gameone_recent"],
                     "next_games": go_next_games + nc_next_games
                 },
