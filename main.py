@@ -3,8 +3,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import requests
-from bs4 import BeautifulSoup
-import re
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -19,17 +17,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MY_COOKIE = "PHPSESSID=aeoms26i6tggs7vsgrfovuko20"
-
 PLAYERS_DB = {
     # 1. 이바다
     "ebada": {
         "name": "이바다",
         "back_number": "2",
-        "team_name": "MAVERICKS (매버릭스)",
+        "team_name": "MAVERICKS / 초인",
         "position": "내야수",
         "gameone_url": "https://www.gameone.kr/locker/?group_code=4FTVYZBDRQ03POLMAEJCW5S261XU879K",
-        "nicecatch_url": "http://www.nicecatch.kr/team/31125b52-64db-4568-a8ef-3b18513cea75/playerstat/1abb154d-9758-4623-bf13-1cb0893a1f29",
+        "nicecatch_player_id": "1abb154d-9758-4623-bf13-1cb0893a1f29",
         "nicecatch_api_url": "http://www.nicecatch.kr/api/team/31125b52-64db-4568-a8ef-3b18513cea75",
         "gameone_stats": {"avg": ".150", "hits": 3, "hr": 0, "ops": ".382", "ab": 20},
         "gameone_recent": [
@@ -39,7 +35,7 @@ PLAYERS_DB = {
             {"date": "05.17(일)", "opponent": "트래피스", "stat": "3타석 3타수 1안타 2득점 2타점"},
             {"date": "04.19(일)", "opponent": "류", "stat": "3타석 3타수 0안타 0득점 0타점"}
         ],
-        "nicecatch_stats": {"avg": ".407", "hits": 11, "hr": 0, "ops": "1.025", "ab": 27}
+        "nicecatch_default_stats": {"avg": ".407", "hits": 11, "hr": 0, "ops": "1.025", "ab": 27}
     },
     # 2. 이재혁
     "jaehyuk": {
@@ -77,10 +73,8 @@ PLAYERS_DB = {
         "gameone_url": "https://www.gameone.kr/locker/?group_code=P8AIVLPI0N4FB6KQZSVCT9BDGNO3WRYZ",
         "nicecatch_player_id": "f2210158-7bc3-4224-9cca-c409ddf973f7",
         "nicecatch_api_url": "http://www.nicecatch.kr/api/team/31125b52-64db-4568-a8ef-3b18513cea75",
-        
         "gameone_official_stats": {"avg": ".319", "hits": 15, "hr": 0, "ops": ".955", "ab": 47},
-        "nicecatch_official_stats": {"avg": ".200", "hits": 1, "hr": 0, "ops": ".733", "ab": 5},
-
+        "nicecatch_default_stats": {"avg": ".200", "hits": 1, "hr": 0, "ops": ".733", "ab": 5},
         "mavericks_recent": [
             {"date": "08.09(일)", "sort_key": "08.09", "opponent": "IRONY (MAVERICKS)", "stat": "4타석 2타수 1안타 2득점 0타점"},
             {"date": "07.19(일)", "sort_key": "07.19", "opponent": "The Players (MAVERICKS)", "stat": "3타석 3타수 2안타 0득점 1타점"},
@@ -100,7 +94,7 @@ PLAYERS_DB = {
     "jeonwoong": {
         "name": "강전웅",
         "back_number": "29",
-        "team_name": "MAVERICKS (매버릭스)",
+        "team_name": "MAVERICKS",
         "position": "외야수 (우투우타)",
         "gameone_url": "https://www.gameone.kr/locker/?group_code=5BO1OHKJROG000LP2V4",
         "gameone_official_stats": {"avg": ".250", "hits": "2", "hr": "0", "ops": ".775"},
@@ -114,16 +108,14 @@ PLAYERS_DB = {
     # 5. 정우정
     "woojeong": {
         "name": "정우정",
-        "back_number": "4",
-        "team_name": "MAVERICKS / 나이스캐치(초인)",
+        "back_number": "53",
+        "team_name": "MAVERICKS / 초인",
         "position": "외야수 (우투우타)",
         "gameone_url": "https://www.gameone.kr/locker/record/sum?group_code=2BKIPBMVLFL0000002AUQJ",
-        "nicecatch_url": "http://www.nicecatch.kr/team/31125b52-64db-4568-a8ef-3b18513cea75/playerstat/02cba256-86fb-4afb-b7c5-b5679459f6a2",
+        "nicecatch_player_id": "02cba256-86fb-4afb-b7c5-b5679459f6a2",
         "nicecatch_api_url": "http://www.nicecatch.kr/api/team/31125b52-64db-4568-a8ef-3b18513cea75",
-        
         "gameone_stats": {"avg": ".375", "hits": 3, "hr": 0, "ops": ".875", "ab": 8},
-        "nicecatch_stats": {"avg": ".333", "hits": 4, "hr": 0, "ops": ".800", "ab": 12},
-
+        "nicecatch_default_stats": {"avg": ".200", "hits": 1, "hr": 0, "ops": ".733", "ab": 5},
         "gameone_recent": [
             {"date": "06.14(일)", "opponent": "미제스틱베이스볼", "stat": "3타석 2타수 1안타 1득점 1타점"},
             {"date": "04.19(일)", "opponent": "류", "stat": "3타석 2타수 0안타 2득점 0타점"},
@@ -131,6 +123,64 @@ PLAYERS_DB = {
         ]
     }
 }
+
+def fetch_nicecatch_player_stats(api_url, player_id, default_stats):
+    """나이스캐치 REST API 개별/팀 엔드포인트 파싱 엔진"""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "http://www.nicecatch.kr/"
+    }
+    
+    # 1. 개별 선수 API 엔드포인트 호출
+    try:
+        detail_url = f"{api_url}/playerstat/{player_id}"
+        res = requests.get(detail_url, headers=headers, timeout=4)
+        if res.status_code in [200, 304]:
+            res_json = res.json()
+            if res_json.get("ok") and res_json.get("data"):
+                p = res_json.get("data")
+                hits = int(p.get("hits") or p.get("h1") or 0)
+                ab = int(p.get("ab") or p.get("atBat") or 0)
+                hr = int(p.get("hr") or p.get("homeRun") or 0)
+                avg_val = float(p.get("avg") or p.get("battingAvg") or (hits / ab if ab > 0 else 0))
+                ops_val = float(p.get("ops") or 0.733)
+                return {
+                    "avg": f".{int(round(avg_val, 3) * 1000):03d}",
+                    "hits": hits,
+                    "hr": hr,
+                    "ops": f"{ops_val:.3f}",
+                    "ab": ab
+                }
+    except Exception as e:
+        print(f"[나이스캐치 개별 API 수집 탐색] {e}")
+
+    # 2. 팀 전체 선수 목록 API 호출
+    try:
+        res = requests.get(api_url, headers=headers, timeout=4)
+        if res.status_code in [200, 304]:
+            res_json = res.json()
+            if res_json.get("ok"):
+                players = res_json.get("data", {}).get("players", []) or res_json.get("data", {}).get("playerStats", [])
+                for p in players:
+                    if str(p.get("playerId") or p.get("id") or p.get("playerStatId")) == str(player_id):
+                        hits = int(p.get("hits") or p.get("h1") or 0)
+                        ab = int(p.get("ab") or p.get("atBat") or 0)
+                        hr = int(p.get("hr") or p.get("homeRun") or 0)
+                        avg_val = float(p.get("avg") or p.get("battingAvg") or (hits / ab if ab > 0 else 0))
+                        ops_val = float(p.get("ops") or 0.733)
+                        return {
+                            "avg": f".{int(round(avg_val, 3) * 1000):03d}",
+                            "hits": hits,
+                            "hr": hr,
+                            "ops": f"{ops_val:.3f}",
+                            "ab": ab
+                        }
+    except Exception as e:
+        print(f"[나이스캐치 팀 API 수집 탐색] {e}")
+
+    return default_stats
+
 
 def fetch_nicecatch_schedules_from_api(api_url):
     headers = {
@@ -140,7 +190,7 @@ def fetch_nicecatch_schedules_from_api(api_url):
     }
     schedules = []
     try:
-        res = requests.get(api_url, headers=headers, timeout=5)
+        res = requests.get(api_url, headers=headers, timeout=4)
         if res.status_code in [200, 304]:
             res_json = res.json()
             if res_json.get("ok"):
@@ -153,7 +203,7 @@ def fetch_nicecatch_schedules_from_api(api_url):
                         "league": "강동하반기일요일리그"
                     })
     except Exception as e:
-        print(f"[API 호출 알림] {e}")
+        print(f"[나이스캐치 일정 API 수집 탐색] {e}")
 
     if not schedules:
         schedules = [
@@ -172,7 +222,12 @@ def get_player_data(player_id: str):
 
     if player_id in ["ebada", "woojeong"]:
         go_s = p_info["gameone_stats"]
-        nc_s = p_info["nicecatch_stats"]
+        nc_s = fetch_nicecatch_player_stats(
+            p_info["nicecatch_api_url"], 
+            p_info.get("nicecatch_player_id", ""), 
+            p_info["nicecatch_default_stats"]
+        )
+        
         go_next_games = [{"date": "08월23일(일) 06:00", "opponent": "안드로메다", "stadium": "명품구장", "league": "MAVERICKS"}]
         nc_next_games = fetch_nicecatch_schedules_from_api(p_info["nicecatch_api_url"])
 
@@ -193,7 +248,7 @@ def get_player_data(player_id: str):
             "platforms": {
                 "combined": {
                     "label": "통합 기록",
-                    "season_stats": {"avg": combined_avg, "hits": str(tot_hits), "hr": str(tot_hr), "ops": ".830"},
+                    "season_stats": {"avg": combined_avg, "hits": str(tot_hits), "hr": str(tot_hr), "ops": ".820"},
                     "recent_games": p_info["gameone_recent"],
                     "next_games": go_next_games + nc_next_games
                 },
@@ -205,7 +260,7 @@ def get_player_data(player_id: str):
                 },
                 "nicecatch": {
                     "label": "나이스캐치",
-                    "season_stats": {"avg": nc_s["avg"], "hits": str(nc_s["hits"]), "hr": str(nc_s["hr"]), "ops": nc_s["ops"]},
+                    "season_stats": {"avg": nc_s["avg"], "hits": str(nc_s["hits"]), "hr": str(nc_s["hr"]), "ops": str(nc_s["ops"])},
                     "recent_games": [],
                     "next_games": nc_next_games
                 }
@@ -214,7 +269,11 @@ def get_player_data(player_id: str):
 
     elif player_id == "hwanjoo":
         go_s = p_info["gameone_official_stats"]
-        nc_s = p_info["nicecatch_official_stats"]
+        nc_s = fetch_nicecatch_player_stats(
+            p_info["nicecatch_api_url"], 
+            p_info["nicecatch_player_id"], 
+            p_info["nicecatch_default_stats"]
+        )
         
         tot_ab = go_s["ab"] + nc_s["ab"]
         tot_hits = go_s["hits"] + nc_s["hits"]
@@ -260,7 +319,7 @@ def get_player_data(player_id: str):
                 },
                 "nicecatch": {
                     "label": "나이스캐치",
-                    "season_stats": {"avg": nc_s["avg"], "hits": str(nc_s["hits"]), "hr": str(nc_s["hr"]), "ops": nc_s["ops"]},
+                    "season_stats": {"avg": nc_s["avg"], "hits": str(nc_s["hits"]), "hr": str(nc_s["hr"]), "ops": str(nc_s["ops"])},
                     "recent_games": [],
                     "next_games": nc_next
                 }
